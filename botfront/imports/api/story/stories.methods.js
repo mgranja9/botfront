@@ -7,6 +7,7 @@ import { indexStory } from './stories.index';
 import { Stories } from './stories.collection';
 import { Projects } from '../project/project.collection';
 import { NLUModels } from '../nlu_model/nlu_model.collection';
+import BotResponses from '../graphql/botResponses/botResponses.model';
 import { deleteResponsesRemovedFromStories } from '../graphql/botResponses/mongo/botResponses';
 
 export const checkStoryNotEmpty = story => story.story && !!story.story.replace(/\s/g, '').length;
@@ -19,11 +20,10 @@ Meteor.methods({
                 .map(s => ({
                     ...s,
                     ...(s._id ? {} : { _id: uuidv4() }),
-                    events: aggregateEvents(s),
+                    ...indexStory(s, { includeEventsField: true }),
                 })));
         }
         const { textIndex, events } = indexStory(story, { includeEventsField: true });
-        console.log(textIndex);
         return Stories.insert({ ...story, events, textIndex });
     },
 
@@ -95,7 +95,7 @@ Meteor.methods({
             { $pullAll: { checkpoints: [branchPath] } },
         );
     },
-    'stories.search'(projectId, language, search) {
+    async 'stories.search'(projectId, language, search) {
         check(projectId, String);
         check(language, String);
         check(search, String);
@@ -112,8 +112,12 @@ Meteor.methods({
             }
             return filtered;
         }, []);
+        const matchedResponses = await BotResponses.find(
+            { $text: { $search: search } },
+        ).lean();
+        const responseKeys = matchedResponses.map(({ key }) => key);
         const matched = Stories.find(
-            { projectId, $text: { $search: `${search} ${intents.join(' ')}` } },
+            { projectId, $text: { $search: `${search} ${intents.join(' ')} ${responseKeys.join(' ')}` } },
             { fields: { _id: 1, title: 1 } },
         ).fetch();
         return matched;
