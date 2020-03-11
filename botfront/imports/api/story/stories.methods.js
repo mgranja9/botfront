@@ -1,7 +1,7 @@
 import { Meteor } from 'meteor/meteor';
 import { check, Match } from 'meteor/check';
 import uuidv4 from 'uuid/v4';
-import { traverseStory, aggregateEvents } from '../../lib/story.utils';
+import { traverseStory } from '../../lib/story.utils';
 import { indexStory } from './stories.index';
 
 import { Stories } from './stories.collection';
@@ -39,7 +39,8 @@ Meteor.methods({
         if (!path) {
             if (story.story || story.branches) {
                 rest.textIndex = indexStory(story);
-            } else if (story.title) {
+            }
+            if (story.title) {
                 rest.textIndex.title = story.title;
             }
             return Stories.update({ _id }, { $set: { ...rest } });
